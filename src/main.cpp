@@ -1,14 +1,38 @@
 #include <SDL2/SDL.h>
 
+static bool IsWhite = true;
+
 bool HandleEvent(SDL_Event *Event)
 {
     bool ShouldQuit = false;
 
     switch (Event->type)
     {
+        case SDL_WINDOWEVENT_EXPOSED:
+        {
+//            SDL_Window *Window = SDL_GetWindowFromID(Event->window.windowID);
+//            SDL_Renderer *Renderer = SDL_GetRenderer(Window);
+//
+//            if (IsWhite)
+//            {
+//                SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
+//                IsWhite = false;
+//            }
+//            else
+//            {
+//                SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
+//                IsWhite = true;
+//            }
+//
+//            SDL_RenderClear(Renderer);
+//            SDL_RenderPresent(Renderer);
+            break;
+        }
+
         case SDL_WINDOWEVENT_RESIZED:
         {
             printf("SDL_WINDOWEVENT_RESIZED (%d, %d)\n", Event->window.data1, Event->window.data2);
+            break;
         }
 
         case SDL_QUIT:
@@ -26,7 +50,7 @@ int main(int argc, char *argv[])
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
-        // TODO: Display message box saying that SDL failed.
+        return -1;
     }
 
     SDL_Window *Window;
@@ -37,6 +61,18 @@ int main(int argc, char *argv[])
                               640,
                               480,
                               SDL_WINDOW_RESIZABLE);
+
+    if (Window == NULL)
+    {
+        return -1;
+    }
+
+    SDL_Renderer *Renderer = SDL_CreateRenderer(Window, -1, 0);
+
+    if (Renderer == NULL)
+    {
+        return -1;
+    }
 
     for (;;)
     {
