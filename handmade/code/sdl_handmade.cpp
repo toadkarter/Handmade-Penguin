@@ -10,8 +10,7 @@ bool HandleEvent(SDL_Event* Event)
         case SDL_QUIT:
         {
             ShouldQuit = true;
-            break;
-        }
+        } break;
 
         case SDL_WINDOWEVENT:
         {
@@ -21,21 +20,39 @@ bool HandleEvent(SDL_Event* Event)
                 case SDL_WINDOWEVENT_RESIZED:
                 {
                     printf("Window has been resized (%d, %d)\n", Event->window.data1, Event->window.data2);
-                    break;
-                }
+                } break;
+
+                case SDL_WINDOWEVENT_EXPOSED:
+                {
+                    SDL_Window* Window = SDL_GetWindowFromID(Event->window.windowID);
+                    SDL_Renderer* Renderer = SDL_GetRenderer(Window);
+                    static bool IsWhite = true;
+
+                    if (IsWhite)
+                    {
+                        SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
+                        IsWhite = false;
+                    }
+                    else
+                    {
+                        SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
+                        IsWhite = true;
+                    }
+
+                    SDL_RenderClear(Renderer);
+                    SDL_RenderPresent(Renderer);
+                } break;
 
                 default:
                 {
-                    break;
-                }
-            }
-            break;
+                } break;
+
+            } break;
         }
 
         default:
         {
-            break;
-        }
+        } break;
     }
 
     return ShouldQuit;
@@ -58,6 +75,22 @@ int main(int argc, char **argv)
                               480,
                               SDL_WINDOW_RESIZABLE);
 
+    if (Window == NULL)
+    {
+        // TODO: Handle error.
+        return 1;
+    }
+
+    SDL_Renderer* Renderer;
+    Renderer = SDL_CreateRenderer(Window,
+                                  -1,
+                                  0);
+
+    if (Renderer == NULL)
+    {
+        // TODO: Handle error.
+        return 1;
+    }
 
     for (;;)
     {
