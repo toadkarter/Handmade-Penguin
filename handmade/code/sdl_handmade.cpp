@@ -1,5 +1,52 @@
 #include <SDL2/SDL.h>
 
+#define internal static
+#define local_persist static
+#define global_variable static
+
+global_variable SDL_Texture* Texture;
+global_variable void* Pixels;
+global_variable int TextureWidth;
+
+internal void
+SDLResizeTexture(SDL_Renderer* Renderer, int Width, int Height)
+{
+    if (Pixels != NULL)
+    {
+        free(Pixels);
+    }
+
+    if (Texture != NULL)
+    {
+        SDL_DestroyTexture(Texture);
+    }
+
+    Texture = SDL_CreateTexture(Renderer,
+                                SDL_PIXELFORMAT_ARGB8888,
+                                SDL_TEXTUREACCESS_STREAMING,
+                                Width,
+                                Height);
+
+    TextureWidth = Width;
+    Pixels = malloc(Width * Height * 4);
+}
+
+internal void
+SDLUpdateWindow(SDL_Window* Window, SDL_Renderer* Renderer)
+{
+    SDL_UpdateTexture(Texture,
+                      NULL,
+                      Pixels,
+                      TextureWidth * 4);
+
+    SDL_RenderCopy(Renderer,
+                   Texture,
+                   NULL,
+                   NULL);
+
+    SDL_RenderPresent(Renderer);
+}
+
 bool HandleEvent(SDL_Event* Event)
 {
     bool ShouldQuit = false;
@@ -17,30 +64,19 @@ bool HandleEvent(SDL_Event* Event)
             Uint8 WindowEvent = Event->window.event;
             switch (WindowEvent)
             {
-                case SDL_WINDOWEVENT_RESIZED:
+                case SDL_WINDOWEVENT_SIZE_CHANGED:
                 {
-                    printf("Window has been resized (%d, %d)\n", Event->window.data1, Event->window.data2);
+                    SDL_Window* Window = SDL_GetWindowFromID(Event->window.windowID);
+                    SDL_Renderer* Renderer = SDL_GetRenderer(Window);
+                    printf("SDL_WINDOWEVENT_SIZE_CHANGED (%d, %d)\n", Event->window.data1, Event->window.data2);
+                    SDLResizeTexture(Renderer, Event->window.data1, Event->window.data2);
                 } break;
 
                 case SDL_WINDOWEVENT_EXPOSED:
                 {
                     SDL_Window* Window = SDL_GetWindowFromID(Event->window.windowID);
                     SDL_Renderer* Renderer = SDL_GetRenderer(Window);
-                    static bool IsWhite = true;
-
-                    if (IsWhite)
-                    {
-                        SDL_SetRenderDrawColor(Renderer, 255, 255, 255, 255);
-                        IsWhite = false;
-                    }
-                    else
-                    {
-                        SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
-                        IsWhite = true;
-                    }
-
-                    SDL_RenderClear(Renderer);
-                    SDL_RenderPresent(Renderer);
+                    SDLUpdateWindow(Window, Renderer);
                 } break;
 
                 default:
@@ -92,6 +128,18 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    int Width;
+    int Height;
+    SDL_GetWindowSize(Window, &Width, &Height);
+
+    SDL_Texture* Texture = SDL_CreateTexture(Renderer,
+                                             SDL_PIXELFORMAT_ARGB8888,
+                                             SDL_TEXTUREACCESS_STREAMING,
+                                             Width,
+                                             Height);
+
+    void* Pixels = malloc(Width * Height * 4);
+
     for (;;)
     {
         SDL_Event Event;
@@ -103,6 +151,7 @@ int main(int argc, char **argv)
 
     }
 
+    SDL_Quit();
     return 0;
 
 }
