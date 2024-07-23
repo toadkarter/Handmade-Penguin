@@ -5,15 +5,16 @@
 #define global_variable static
 
 global_variable SDL_Texture* Texture;
-global_variable void* Pixels;
-global_variable int TextureWidth;
+global_variable void* BitmapMemory;
+global_variable int BitmapWidth;
+global_variable int BytesPerPixel = 4;
 
 internal void
 SDLResizeTexture(SDL_Renderer* Renderer, int Width, int Height)
 {
-    if (Pixels != NULL)
+    if (BitmapMemory != NULL)
     {
-        free(Pixels);
+        free(BitmapMemory);
     }
 
     if (Texture != NULL)
@@ -27,8 +28,8 @@ SDLResizeTexture(SDL_Renderer* Renderer, int Width, int Height)
                                 Width,
                                 Height);
 
-    TextureWidth = Width;
-    Pixels = malloc(Width * Height * 4);
+    BitmapWidth = Width;
+    BitmapMemory = malloc(Width * Height * BytesPerPixel);
 }
 
 internal void
@@ -36,8 +37,8 @@ SDLUpdateWindow(SDL_Window* Window, SDL_Renderer* Renderer)
 {
     SDL_UpdateTexture(Texture,
                       NULL,
-                      Pixels,
-                      TextureWidth * 4);
+                      BitmapMemory,
+                      BitmapWidth * BytesPerPixel);
 
     SDL_RenderCopy(Renderer,
                    Texture,
@@ -127,18 +128,6 @@ int main(int argc, char **argv)
         // TODO: Handle error.
         return 1;
     }
-
-    int Width;
-    int Height;
-    SDL_GetWindowSize(Window, &Width, &Height);
-
-    SDL_Texture* Texture = SDL_CreateTexture(Renderer,
-                                             SDL_PIXELFORMAT_ARGB8888,
-                                             SDL_TEXTUREACCESS_STREAMING,
-                                             Width,
-                                             Height);
-
-    void* Pixels = malloc(Width * Height * 4);
 
     for (;;)
     {
