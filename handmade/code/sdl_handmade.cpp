@@ -18,6 +18,14 @@ struct sdl_offscreen_buffer
     int BytesPerPixel;
 };
 
+struct sdl_audio_ring_buffer
+{
+    int Size;
+    int WriteCursor;
+    int PlayCursor;
+    void* Data;
+};
+
 struct sdl_window_dimension
 {
     int Width;
@@ -25,6 +33,48 @@ struct sdl_window_dimension
 };
 
 global_variable sdl_offscreen_buffer GlobalBackbuffer;
+global_variable sdl_audio_ring_buffer AudioRingBuffer;
+
+// TODO: Figure out how this works
+internal void
+SDLAudioCallback(void* UserData, Uint8* AudioData, int Length)
+{
+    sdl_audio_ring_buffer* RingBuffer = (sdl_audio_ring_buffer*)(UserData);
+
+    int Region1Size = Length;
+    int Region2Size = 0;
+
+    if (RingBuffer->PlayCursor + Length > RingBuffer->Size)
+    {
+        Region1Size = RingBuffer->Size - RingBuffer->PlayCursor;
+        Region2Size = Length - Region1Size;
+    }
+
+    memcpy(AudioData, (Uint8*)(RingBuffer->Data) + RingBuffer->PlayCursor, Region1Size);
+    memcpy(&AudioData[Region1Size], RingBuffer->Data, Region2Size);
+    RingBuffer->PlayCursor = (RingBuffer->PlayCursor + Length) % RingBuffer->Size;
+    RingBuffer->WriteCursor = (RingBuffer->PlayCursor + 2048) % RingBuffer->Size;
+}
+
+internal void
+SDLInitAudio(Uint32 SamplesPerSecond, Uint32 BufferSize)
+{
+    SDL_AudioSpec AudioSettings = {0};
+
+    AudioSettings.freq = SamplesPerSecond;
+    AudioSettings.format = AUDIO_S16LSB;
+    AudioSettings.channels = 2;
+    AudioSettings.samples = BufferSize;
+    AudioSettings.callback = &SDLAudioCallback;
+    AudioSettings.userdata = &AudioRingBuffer;
+
+    AudioRingBuffer.Size = BufferSize;
+    AudioRingBuffer.Data = malloc(BufferSize);
+    AudioRingBuffer.PlayCursor = AudioRingBuffer.WriteCursor = 0;
+
+        SDL_OpenAudio(&AudioSettings, 0);
+    SDL_PauseAudio(0);
+}
 
 internal sdl_window_dimension
 SDLGetWindowDimension(SDL_Window* window)
@@ -210,32 +260,8 @@ bool HandleEvent(SDL_Event* Event)
     return ShouldQuit;
 }
 
-internal void SDLCloseGameControllers(void)
+internal void SDLOpenGameControllers(void)
 {
-    for (int ControllerIndex = 0; ControllerIndex < MAX_CONTROLLERS; ++ControllerIndex)
-    {
-        if (ControllerHandles[ControllerIndex])
-        {
-            if (RumbleHandles[ControllerIndex])
-            {
-                SDL_HapticClose(RumbleHandles[ControllerIndex]);
-                SDL_GameControllerClose(ControllerHandles[ControllerIndex]);
-            }
-        }
-    }
-}
-
-int main(int argc, char **argv)
-{
-
-    if (SDL_Init(SDL_INIT_VIDEO |
-                 SDL_INIT_GAMECONTROLLER |
-                 SDL_INIT_HAPTIC) < 0)
-    {
-        // TODO: SDL Initialisation failed.
-        return 1;
-    }
-
     int MaxJoysticks = MAX_CONTROLLERS;
     int ControllerIndex = 0;
     for (int JoystickIndex = 0; JoystickIndex < MaxJoysticks; ++JoystickIndex)
@@ -260,6 +286,37 @@ int main(int argc, char **argv)
 
         ControllerIndex++;
     }
+}
+
+internal void SDLCloseGameControllers(void)
+{
+    for (int ControllerIndex = 0; ControllerIndex < MAX_CONTROLLERS; ++ControllerIndex)
+    {
+        if (ControllerHandles[ControllerIndex])
+        {
+            if (RumbleHandles[ControllerIndex])
+            {
+                SDL_HapticClose(RumbleHandles[ControllerIndex]);
+                SDL_GameControllerClose(ControllerHandles[ControllerIndex]);
+            }
+        }
+    }
+}
+
+int main(int argc, char **argv)
+{
+
+    if (SDL_Init(SDL_INIT_VIDEO |
+                 SDL_INIT_GAMECONTROLLER |
+                 SDL_INIT_HAPTIC |
+                 SDL_INIT_AUDIO) < 0)
+    {
+        // TODO: SDL Initialisation failed.
+        return 1;
+    }
+
+    SDLInitAudio(48000, 4096);
+    SDLOpenGameControllers();
 
     SDL_Window* Window;
     Window = SDL_CreateWindow("Handmade Hero",
@@ -338,7 +395,7 @@ int main(int argc, char **argv)
     }
 
     SDLCloseGameControllers();
+    SDL_CloseAudio();
     SDL_Quit();
     return 0;
-
 }
