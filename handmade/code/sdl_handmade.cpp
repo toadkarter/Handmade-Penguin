@@ -7,6 +7,7 @@
 
 #define MAX_CONTROLLERS 4
 SDL_GameController* ControllerHandles[MAX_CONTROLLERS];
+SDL_Haptic* RumbleHandles[MAX_CONTROLLERS];
 
 struct sdl_offscreen_buffer
 {
@@ -110,6 +111,73 @@ bool HandleEvent(SDL_Event* Event)
 
     switch (EventType)
     {
+        case SDL_KEYDOWN:
+        case SDL_KEYUP:
+        {
+            SDL_Keycode KeyCode = Event->key.keysym.sym;
+            bool IsDown = Event->key.state == SDL_PRESSED;
+            bool WasDown = false;
+            if (Event->key.state == SDL_RELEASED)
+            {
+                WasDown = true;
+            }
+            else if (Event->key.repeat != 0)
+            {
+                WasDown = true;
+            }
+
+            if (Event->key.repeat == 0)
+            {
+                if(KeyCode == SDLK_w)
+                {
+                }
+                else if(KeyCode == SDLK_a)
+                {
+                }
+                else if(KeyCode == SDLK_s)
+                {
+                }
+                else if(KeyCode == SDLK_d)
+                {
+                }
+                else if(KeyCode == SDLK_q)
+                {
+                }
+                else if(KeyCode == SDLK_e)
+                {
+                }
+                else if(KeyCode == SDLK_UP)
+                {
+                }
+                else if(KeyCode == SDLK_LEFT)
+                {
+                }
+                else if(KeyCode == SDLK_DOWN)
+                {
+                }
+                else if(KeyCode == SDLK_RIGHT)
+                {
+                }
+                else if(KeyCode == SDLK_ESCAPE)
+                {
+                    printf("ESCAPE: ");
+                    if(IsDown)
+                    {
+                        printf("IsDown ");
+                    }
+                    if(WasDown)
+                    {
+                        printf("WasDown");
+                    }
+                    printf("\n");
+                }
+                else if(KeyCode == SDLK_SPACE)
+                {
+                }
+            }
+
+        } break;
+
         case SDL_QUIT:
         {
             ShouldQuit = true;
@@ -142,10 +210,27 @@ bool HandleEvent(SDL_Event* Event)
     return ShouldQuit;
 }
 
+internal void SDLCloseGameControllers(void)
+{
+    for (int ControllerIndex = 0; ControllerIndex < MAX_CONTROLLERS; ++ControllerIndex)
+    {
+        if (ControllerHandles[ControllerIndex])
+        {
+            if (RumbleHandles[ControllerIndex])
+            {
+                SDL_HapticClose(RumbleHandles[ControllerIndex]);
+                SDL_GameControllerClose(ControllerHandles[ControllerIndex]);
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0)
+    if (SDL_Init(SDL_INIT_VIDEO |
+                 SDL_INIT_GAMECONTROLLER |
+                 SDL_INIT_HAPTIC) < 0)
     {
         // TODO: SDL Initialisation failed.
         return 1;
@@ -166,6 +251,13 @@ int main(int argc, char **argv)
         }
 
         ControllerHandles[ControllerIndex] = SDL_GameControllerOpen(JoystickIndex);
+        RumbleHandles[ControllerIndex] = SDL_HapticOpen(JoystickIndex);
+        if (RumbleHandles[ControllerIndex] && SDL_HapticRumbleInit(RumbleHandles[ControllerIndex]) != 0)
+        {
+            SDL_HapticClose(RumbleHandles[ControllerIndex]);
+            RumbleHandles[ControllerIndex] = 0;
+        }
+
         ControllerIndex++;
     }
 
@@ -212,6 +304,32 @@ int main(int argc, char **argv)
             }
         }
 
+        for (int ControllerIndex = 0; ControllerIndex < MAX_CONTROLLERS; ++ControllerIndex)
+        {
+            if (ControllerHandles[ControllerIndex] != 0 && SDL_GameControllerGetAttached(ControllerHandles[ControllerIndex]))
+            {
+                bool Up = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_DPAD_UP);
+                bool Down = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+                bool Left = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+                bool Right = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+                bool Start = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_START);
+                bool Back = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_BACK);
+                bool LeftShoulder = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
+                bool RightShoulder = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
+                bool AButton = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_A);
+                bool BButton = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_B);
+                bool XButton = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_X);
+                bool YButton = SDL_GameControllerGetButton(ControllerHandles[ControllerIndex], SDL_CONTROLLER_BUTTON_Y);
+
+                Uint16 StickX = SDL_GameControllerGetAxis(ControllerHandles[ControllerIndex], SDL_CONTROLLER_AXIS_LEFTX);
+                Uint16 StickY = SDL_GameControllerGetAxis(ControllerHandles[ControllerIndex], SDL_CONTROLLER_AXIS_LEFTY);
+            }
+            else
+            {
+                // Note: This controller is not plugged in.
+            }
+        }
+
         RenderWeirdGradient(GlobalBackbuffer, XOffset, YOffset);
         ++XOffset;
         YOffset += 2;
@@ -219,15 +337,7 @@ int main(int argc, char **argv)
         SDLUpdateWindow(Window, Renderer, &GlobalBackbuffer);
     }
 
-    for (int ControllerIndex; ControllerIndex < MAX_CONTROLLERS; ++ControllerIndex)
-    {
-        SDL_GameController* CurrentController = ControllerHandles[ControllerIndex];
-        if (CurrentController != NULL)
-        {
-            SDL_GameControllerClose(CurrentController);
-        }
-    }
-
+    SDLCloseGameControllers();
     SDL_Quit();
     return 0;
 
