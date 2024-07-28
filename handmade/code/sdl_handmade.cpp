@@ -19,18 +19,14 @@ RenderWeirdGradient(int XOffset, int YOffset)
 
     for (int Y = 0; Y < BitmapHeight; ++Y)
     {
-        Uint8* Pixel = (Uint8*)Row;
+        Uint32* Pixel = (Uint32*)Row;
 
         for (int X = 0; X < BitmapWidth; ++X)
         {
-            *Pixel = (Uint8)(X + XOffset);
-            ++Pixel;
-            *Pixel = (Uint8)(Y + YOffset);
-            ++Pixel;
-            *Pixel = 0;
-            ++Pixel;
-            *Pixel = 0;
-            ++Pixel;
+            Uint8 Blue = (Uint8)(X + XOffset);
+            Uint8 Green = (Uint8)(Y + YOffset);
+
+            *Pixel++ = ((Green << 8) | Blue);
         }
 
         Row += Pitch;
