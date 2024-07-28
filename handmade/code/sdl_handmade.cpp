@@ -5,6 +5,9 @@
 #define local_persist static
 #define global_variable static
 
+#define MAX_CONTROLLERS 4
+SDL_GameController* ControllerHandles[MAX_CONTROLLERS];
+
 struct sdl_offscreen_buffer
 {
     SDL_Texture* Texture;
@@ -142,10 +145,28 @@ bool HandleEvent(SDL_Event* Event)
 int main(int argc, char **argv)
 {
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0)
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0)
     {
         // TODO: SDL Initialisation failed.
         return 1;
+    }
+
+    int MaxJoysticks = MAX_CONTROLLERS;
+    int ControllerIndex = 0;
+    for (int JoystickIndex = 0; JoystickIndex < MaxJoysticks; ++JoystickIndex)
+    {
+        if (!SDL_IsGameController(JoystickIndex))
+        {
+            continue;
+        }
+
+        if (ControllerIndex >= MAX_CONTROLLERS)
+        {
+            break;
+        }
+
+        ControllerHandles[ControllerIndex] = SDL_GameControllerOpen(JoystickIndex);
+        ControllerIndex++;
     }
 
     SDL_Window* Window;
@@ -196,6 +217,15 @@ int main(int argc, char **argv)
         YOffset += 2;
 
         SDLUpdateWindow(Window, Renderer, &GlobalBackbuffer);
+    }
+
+    for (int ControllerIndex; ControllerIndex < MAX_CONTROLLERS; ++ControllerIndex)
+    {
+        SDL_GameController* CurrentController = ControllerHandles[ControllerIndex];
+        if (CurrentController != NULL)
+        {
+            SDL_GameControllerClose(CurrentController);
+        }
     }
 
     SDL_Quit();
