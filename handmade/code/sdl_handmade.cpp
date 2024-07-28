@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <sys/mman.h>
+#include <x86intrin.h>
 
 #define internal static
 #define local_persist static
@@ -308,14 +309,13 @@ int main(int argc, char **argv)
 
     if (SDL_Init(SDL_INIT_VIDEO |
                  SDL_INIT_GAMECONTROLLER |
-                 SDL_INIT_HAPTIC |
-                 SDL_INIT_AUDIO) < 0)
+                 SDL_INIT_HAPTIC) < 0)
     {
         // TODO: SDL Initialisation failed.
         return 1;
     }
 
-    SDLInitAudio(48000, 4096);
+    Uint64 PerfCountFrequency = SDL_GetPerformanceFrequency();
     SDLOpenGameControllers();
 
     SDL_Window* Window;
@@ -349,6 +349,9 @@ int main(int argc, char **argv)
     bool Running = true;
     int XOffset = 0;
     int YOffset = 0;
+
+    Uint64 LastCounter = SDL_GetPerformanceCounter();
+    Uint64 LastCycleCount = _rdtsc();
 
     while (Running)
     {
@@ -392,6 +395,20 @@ int main(int argc, char **argv)
         YOffset += 2;
 
         SDLUpdateWindow(Window, Renderer, &GlobalBackbuffer);
+
+        Uint64 EndCycleCount = _rdtsc();
+        Uint64 EndCounter = SDL_GetPerformanceCounter();
+        Uint64 CounterElapsed = EndCounter - LastCounter;
+        Uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
+
+        double MSPerFrame = (((1000.0f * (double)CounterElapsed) / (double)PerfCountFrequency));
+        double FPS = (double)PerfCountFrequency / (double)CounterElapsed;
+        double MCPF = ((double)CyclesElapsed / (1000.0f * 1000.0f));
+
+        printf("%.02fms/f, %.02f/s, %.02fmc/f\n", MSPerFrame, FPS, MCPF);
+
+        LastCycleCount = EndCycleCount;
+        LastCounter = EndCounter;
     }
 
     SDLCloseGameControllers();
