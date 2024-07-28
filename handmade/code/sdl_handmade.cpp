@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <sys/mman.h>
 
 #define internal static
 #define local_persist static
@@ -7,14 +8,42 @@
 global_variable SDL_Texture* Texture;
 global_variable void* BitmapMemory;
 global_variable int BitmapWidth;
+global_variable int BitmapHeight;
 global_variable int BytesPerPixel = 4;
+
+internal void
+RenderWeirdGradient(int XOffset, int YOffset)
+{
+    Uint8* Row = (Uint8*)BitmapMemory;
+    int Pitch = BitmapWidth* BytesPerPixel;
+
+    for (int Y = 0; Y < BitmapHeight; ++Y)
+    {
+        Uint8* Pixel = (Uint8*)Row;
+
+        for (int X = 0; X < BitmapWidth; ++X)
+        {
+            *Pixel = (Uint8)(X + XOffset);
+            ++Pixel;
+            *Pixel = (Uint8)(Y + YOffset);
+            ++Pixel;
+            *Pixel = 0;
+            ++Pixel;
+            *Pixel = 0;
+            ++Pixel;
+        }
+
+        Row += Pitch;
+    }
+}
 
 internal void
 SDLResizeTexture(SDL_Renderer* Renderer, int Width, int Height)
 {
+    // The size of memory will be different - therefore undo all the memory stuff.
     if (BitmapMemory != NULL)
     {
-        free(BitmapMemory);
+        munmap(BitmapMemory, BitmapWidth * BitmapHeight * BytesPerPixel);
     }
 
     if (Texture != NULL)
@@ -29,7 +58,13 @@ SDLResizeTexture(SDL_Renderer* Renderer, int Width, int Height)
                                 Height);
 
     BitmapWidth = Width;
-    BitmapMemory = malloc(Width * Height * BytesPerPixel);
+    BitmapHeight = Height;
+    BitmapMemory = mmap(0,
+                        Width * Height * 4,
+                        PROT_READ | PROT_WRITE,
+                        MAP_ANONYMOUS | MAP_PRIVATE,
+                        -1,
+                        0);
 }
 
 internal void
@@ -129,15 +164,30 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    for (;;)
+    int Width, Height;
+    SDL_GetWindowSize(Window, &Width, &Height);
+    SDLResizeTexture(Renderer, Width, Height);
+
+    bool Running = true;
+    int XOffset = 0;
+    int YOffset = 0;
+
+    while (Running)
     {
         SDL_Event Event;
-        SDL_WaitEvent(&Event);
-        if (HandleEvent(&Event))
+        while (SDL_PollEvent(&Event))
         {
-            break;
+            if (HandleEvent(&Event))
+            {
+                Running = false;
+            }
         }
 
+        RenderWeirdGradient(XOffset, YOffset);
+        ++XOffset;
+        YOffset += 2;
+
+        SDLUpdateWindow(Window, Renderer);
     }
 
     SDL_Quit();
